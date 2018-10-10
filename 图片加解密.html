@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="cn">
+<head>
+	<meta charset="UTF-8">
+	<title>图像加解密</title>
+</head>
+<body>
+		<p id='p'>1.选择utf-8编码文件，加密为图片格式。生成图片后，右键，另存为图片</p>
+		<input id='importFile' name='importFile' type='file' onchange='readFile(this.files)' />
+		<button onclick='encode()'>加密文件为图片：</button>
+		<canvas id='can' width='200px' height='200px' style='border:1px solid black'></canvas>
+		<p>2.选择加密过的图片(图片路径和本文件同级目录)，解密图片内的文件信息</p>
+		<input type='file' onchange='loadPic(this.files)'>
+		<button onclick='decode()'>解密图片为文件：</button>
+		<canvas id='can2' width='200px' height='200px' style='border:1px solid black'></canvas>
+		<p>结果为:</p>
+		<div id='resultArea' style='height:400px;width:800px'></div>
+<script>
+
+	var myCanvas = document.getElementById('can');
+	var context = myCanvas.getContext('2d');
+	var unicodeStr = '';
+	var decodeStr = '';
+	var unicodeArr = [];
+
+	var picCanvas = document.getElementById('can2');
+	var picContext = picCanvas.getContext('2d');
+
+	//加载utf-8编码的文件
+	function readFile(files){
+		for(var i = 0,f; f=files[i];i++){
+			var reader = new FileReader();
+			reader.onload = (function(file){
+				return function(e){
+					//unicodeStr = '';
+					for(var j = 0,len =this.result.length; j < len;j++){
+						var unistr = this.result.charCodeAt(j).toString(16);
+						unistr = ('000' + unistr).substr(-4,4);
+						unicodeStr += unistr;
+					}
+				}
+			})(f);
+			reader.readAsText(f,'UTF-8');
+		}
+	}
+	//对文件加密
+	function encode(){
+		 unicodeArr = unicodeStr.split('');
+		 console.log(unicodeArr,unicodeArr.length)
+
+		 var bitNum = 3 - unicodeArr.length % 3 ;
+		 for(var b = 0; b < bitNum ; b ++){	
+		 	unicodeArr.push('0');
+		 }
+		var imgData = context.getImageData(0,0,200,200);
+		for(var i = unicodeStr.length + bitNum; i> 0; i--){
+			if(i % 3 === 0){
+				unicodeArr.splice(i,0,'ff');
+			}
+		}
+		for(var i = 0,len = unicodeArr.length; i < len;i++){
+			if(unicodeArr[i] == 'ff'){
+				imgData.data[i] = parseInt(unicodeArr[i],16);
+				continue;
+			}
+
+			imgData.data[i] = 125 - parseInt(unicodeArr[i],16);
+		}
+		context.putImageData(imgData,0,0);
+		console.log(unicodeArr,unicodeArr.length);
+	}
+
+	//加载图片
+	function loadPic(pic){
+		var image = new Image();
+		image.src = pic[0].name;
+
+		image.onload = function(){
+			picContext.drawImage(image,0,0);
+		}
+	}
+	//解密图片
+	function decode(){
+		decodeStr = '';
+		var imgData = picContext.getImageData(0,0,200,200);
+		for(var i = 0,len = imgData.data.length; i < len;i++){
+
+			if(imgData.data[i] == 0){
+				console.log(i)
+				break;
+			}
+			if(imgData.data[i].toString(10) !== '255'){
+				decodeStr +=( (125 - imgData.data[i]).toString(16));
+			}
+		}
+		//console.log(decodeStr);
+		var decodeArr = [];
+		var substr = '';
+		var result = '';
+		for(var i = 0; i<decodeStr.length + 4; i +=4 ){
+			substr = decodeStr.substr(i,4);
+			if(substr.length < 4){
+				substr = (substr + '000').substr(0,4);
+			}
+			decodeArr.push(substr);
+			result += String.fromCharCode(parseInt(substr,16));
+		}
+		document.getElementById('resultArea').innerText = result;
+	}
+
+	</script>
+</body>
+</html>
